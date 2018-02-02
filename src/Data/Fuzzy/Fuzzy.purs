@@ -3,16 +3,13 @@ module Data.Fuzzy where
 import Prelude
 
 import Data.Array (snoc, unsnoc)
-import Data.Array.Partial (head)
 import Data.Either (Either(..), note)
 import Data.Foldable (foldl)
-import Data.FoldableWithIndex (foldlWithIndex)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Ord (genericCompare)
 import Data.Generic.Rep.Show (genericShow)
-import Data.Int (toNumber)
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..))
 import Data.Monoid (mempty)
 import Data.String (Pattern(..), drop, indexOf, take, toLower)
 import Data.String.Utils (charAt, length, toCharArray)
@@ -66,14 +63,14 @@ match' _          ""      str =
                   , pos: Last
                   }
 match' ignoreCase pattern str =
-  after $ foldlWithIndex matchCur initial (toCharArray pattern)
+  after $ foldl matchCur initial (toCharArray pattern)
   where
     initial :: Maybe FuzzBall
     initial = Just $ FuzzBall { substr: str, result: mempty, score: zero, pos: First }
 
-    matchCur :: Int -> Maybe FuzzBall -> String -> Maybe FuzzBall
-    matchCur _ Nothing _ = Nothing
-    matchCur i (Just (FuzzBall { substr, result, score, pos })) patChar =
+    matchCur :: Maybe FuzzBall -> String -> Maybe FuzzBall
+    matchCur Nothing _ = Nothing
+    matchCur (Just (FuzzBall { substr, result, score, pos })) patChar =
       case indexOf (Pattern patChar') substr' of
            Nothing ->
              Nothing
