@@ -9,7 +9,7 @@ import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Ord (genericCompare)
 import Data.Generic.Rep.Show (genericShow)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Monoid (mempty)
 import Data.String (Pattern(..), drop, indexOf, take, toLower)
 import Data.String.Utils (charAt, length, toCharArray)
@@ -21,56 +21,56 @@ data Fuzzy t =
         , score    :: Rank
         }
 
-data FuzzBall =
-  FuzzBall { substr    :: String
+data FuzzyStr =
+  FuzzyStr { substr :: String
            , result :: Result
            , score  :: Rank
            , pos    :: Pos
            }
 
-derive instance genericFuzzBall :: Generic FuzzBall _
-instance eqFuzzBall :: Eq FuzzBall where eq = genericEq
-instance showFuzzball :: Show FuzzBall where show = genericShow
+derive instance genericFuzzyStr :: Generic FuzzyStr _
+instance eqFuzzyStr :: Eq FuzzyStr where eq = genericEq
+instance showFuzzball :: Show FuzzyStr where show = genericShow
 
-data Pos = First | Mid | Last
+data Pos = Before | Between | Behind | Rest
 
 derive instance genericPos :: Generic Pos _
 instance eqPos :: Eq Pos where eq = genericEq
 instance showPos :: Show Pos where show = genericShow
 
-data Rank = Rank Int Int Int
+data Rank = Rank Int Int Int Int
 
 derive instance genericRank :: Generic Rank _
 instance eqRank :: Eq Rank where eq = genericEq
 instance showRank :: Show Rank where show = genericShow
 instance ordRank :: Ord Rank where compare = genericCompare
 instance semiringRank :: Semiring Rank where
-  add (Rank x y z) (Rank x' y' z') = Rank (x + x') (y + y') (z + z')
-  zero = Rank 0 0 0
-  mul (Rank x y z) (Rank x' y' z') = Rank (x * x') (y * y') (z * z')
-  one = Rank 1 1 1
+  add (Rank w x y z) (Rank w' x' y' z') = Rank (w + w') (x + x') (y + y') (z + z')
+  zero = Rank 0 0 0 0
+  mul (Rank w x y z) (Rank w' x' y' z') = Rank (w * w') (x * x') (y * y') (z * z')
+  one = Rank 1 1 1 1
 
 type Result = Array (Either String String)
 
 {--match :: ∀ t. String -> t -> (t -> Array String) -> Boolean -> Fuzzy t--}
 {--match pattern t extract caseSensitive =--}
 
-match' :: Boolean -> String -> String -> Maybe FuzzBall
+match' :: Boolean -> String -> String -> Maybe FuzzyStr
 match' _          ""      str =
-  Just $ FuzzBall { substr: str
+  Just $ FuzzyStr { substr: str
                   , result: [ Left str ]
-                  , score: scoreDistance Last (length str)
-                  , pos: Last
+                  , score: scoreDistance Rest (length str)
+                    , pos: Rest
                   }
 match' ignoreCase pattern str =
   after $ foldl matchCur initial (toCharArray pattern)
   where
-    initial :: Maybe FuzzBall
-    initial = Just $ FuzzBall { substr: str, result: mempty, score: zero, pos: First }
+    initial :: Maybe FuzzyStr
+    initial = Just $ FuzzyStr { substr: str, result: mempty, score: zero, pos: Before }
 
-    matchCur :: Maybe FuzzBall -> String -> Maybe FuzzBall
+    matchCur :: Maybe FuzzyStr -> String -> Maybe FuzzyStr
     matchCur Nothing _ = Nothing
-    matchCur (Just (FuzzBall { substr, result, score, pos })) patChar =
+    matchCur (Just (FuzzyStr { substr, result, score, pos })) patChar =
       case indexOf (Pattern patChar') substr' of
            Nothing ->
              Nothing
@@ -82,12 +82,12 @@ match' ignoreCase pattern str =
                    true -> Tuple (toLower patChar) (toLower substr)
                    _    -> Tuple patChar substr
 
-               fuzzball :: Int -> FuzzBall
+               fuzzball :: Int -> FuzzyStr
                fuzzball distance =
-                 FuzzBall { substr: drop (distance + (length patChar)) substr
+                 FuzzyStr { substr: drop (distance + (length patChar)) substr
                           , result: if distance == 0 then mapResult else appendResult
                           , score: score + (scoreDistance pos distance)
-                          , pos: Mid
+                          , pos: Between
                           }
                  where
                    mapResult :: Result
@@ -106,20 +106,25 @@ match' ignoreCase pattern str =
                    nextRight :: Result
                    nextRight = [ note "" (charAt distance substr) ]
 
-    after :: Maybe FuzzBall -> Maybe FuzzBall
+    after :: Maybe FuzzyStr -> Maybe FuzzyStr
     after Nothing = Nothing
-    after (Just (FuzzBall { substr, result, score })) =
-      Just $ FuzzBall { substr: ""
+    after (Just (FuzzyStr { substr, result, score })) =
+      Just $ FuzzyStr { substr: ""
                       , result: result <> if substr == "" then mempty else [ Left substr ]
-                      , score: score + (scoreDistance Last $ length substr)
-                      , pos: Last
+                      , score: score + scoreBehind + scoreRest
+                      , pos: Rest
                       }
+        where
+          lenRem = length substr
+          scoreBehind = scoreDistance Behind (fromMaybe (1 * lenRem) $ indexOf (Pattern " ") substr)
+          scoreRest = scoreDistance Rest lenRem
 
 scoreDistance :: Pos -> Int -> Rank
 scoreDistance pos d =
-  m * (Rank d d d)
+  m * (Rank d d d d)
   where
     m = case pos of
-      First -> Rank 0 1 0
-      Mid   -> Rank 1 0 0
-      Last  -> Rank 0 0 1
+      Before  -> Rank 0 1 0 0
+      Between -> Rank 1 0 0 0
+      Behind  -> Rank 0 0 1 0
+      Rest    -> Rank 0 0 0 1
