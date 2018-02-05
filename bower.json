@@ -12,7 +12,8 @@
     "purescript-strings": "^3.4.0",
     "purescript-foldable-traversable": "^3.7.1",
     "purescript-tuples": "^4.1.0",
-    "purescript-stringutils": "^0.0.7"
+    "purescript-stringutils": "^0.0.7",
+    "purescript-maps": "^3.6.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0",
