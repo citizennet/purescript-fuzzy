@@ -12,26 +12,31 @@ import Data.Generic.Rep.Show (genericShow)
 import Data.Map (Map, empty, insert, toUnfoldable, values)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Monoid (mempty)
+import Data.Newtype (class Newtype, unwrap)
 import Data.String (Pattern(..), drop, indexOf, take, toLower)
 import Data.String.Utils (charAt, length, toCharArray)
 import Data.Tuple (Tuple(..))
 
-data Fuzzy a = Fuzzy
+newtype Fuzzy a = Fuzzy
   { original :: a
   , result   :: Map String (Maybe Result)
   , score    :: Rank
   }
 
 derive instance genericFuzzy :: Generic (Fuzzy a) _
+
+derive instance newtypeFuzzy :: Newtype (Fuzzy a) _
+
 instance eqFuzzy :: Eq a => Eq (Fuzzy a) where eq = genericEq
+
 instance showFuzzy :: Show a => Show (Fuzzy a) where show = genericShow
 
-data FuzzyStr = FuzzyStr
+newtype FuzzyStr = FuzzyStr
   { result :: Result
   , score  :: Rank
   }
 
-data FuzzyStr' = FuzzyStr'
+newtype FuzzyStr' = FuzzyStr'
   { substr :: String
   , result :: Result
   , score  :: Rank
@@ -39,21 +44,31 @@ data FuzzyStr' = FuzzyStr'
   }
 
 derive instance genericFuzzyStr :: Generic FuzzyStr _
+
+derive instance newtypeFuzzyStr :: Newtype FuzzyStr _
+
 instance eqFuzzyStr :: Eq FuzzyStr where eq = genericEq
+
 instance showFuzzyStr :: Show FuzzyStr where show = genericShow
 
 data Pos = Before | Between | Behind | Rest
 
 derive instance genericPos :: Generic Pos _
+
 instance eqPos :: Eq Pos where eq = genericEq
+
 instance showPos :: Show Pos where show = genericShow
 
 data Rank = Rank Int Int Int Int | None
 
 derive instance genericRank :: Generic Rank _
+
 instance eqRank :: Eq Rank where eq = genericEq
+
 instance showRank :: Show Rank where show = genericShow
+
 instance ordRank :: Ord Rank where compare = genericCompare
+
 instance semiringRank :: Semiring Rank where
   add None r = r
   add r None = r
@@ -74,31 +89,28 @@ match _ extract "" x =
     , score: zero
     }
 match ignoreCase extract pattern x =
-  case all (\m -> m == Nothing) matches of
+  case all ((==) Nothing) matches of
     true -> Nothing
     _    -> Just $ Fuzzy
       { original: x
-      , result: map result <$> matches
+      , result: map (_.result <<< unwrap) <$> matches
       , score: foldl minScore None $ values matches
       }
   where
     matches :: Map String (Maybe FuzzyStr)
-    matches = match' ignoreCase pattern <$> extract x
-
-    result :: FuzzyStr -> Result
-    result (FuzzyStr { result }) = result
+    matches = matchStr ignoreCase pattern <$> extract x
 
     minScore :: Rank -> Maybe FuzzyStr -> Rank
     minScore r Nothing = r
     minScore r (Just (FuzzyStr { score })) = min r score
 
-match' :: Boolean -> String -> String -> Maybe FuzzyStr
-match' _          ""      str =
+matchStr :: Boolean -> String -> String -> Maybe FuzzyStr
+matchStr _          ""      str =
   Just $ FuzzyStr
     { result: [ Left str ]
     , score: None
     }
-match' ignoreCase pattern str =
+matchStr ignoreCase pattern str =
   after $ foldl matchCur initial (toCharArray pattern)
   where
     initial :: Maybe FuzzyStr'
