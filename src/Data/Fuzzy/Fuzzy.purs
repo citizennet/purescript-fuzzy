@@ -3,32 +3,29 @@ module Data.Fuzzy where
 import Prelude
 
 import Data.Array (snoc, unsnoc)
-import Data.Either (Either(..), note)
+import Data.Either (Either(..))
 import Data.Foldable (all, foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Ord (genericCompare)
 import Data.Generic.Rep.Show (genericShow)
-import Data.Map (Map, empty, insert, toUnfoldable, values)
+import Data.StrMap (StrMap, values)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Monoid (mempty)
 import Data.Newtype (class Newtype, unwrap)
-import Data.String (Pattern(..), drop, indexOf, take, toLower)
-import Data.String.Utils (charAt, length, toCharArray)
+import Data.String (Pattern(..), drop, indexOf, lastIndexOf, take, toLower)
+import Data.String.Utils (length, toCharArray, words)
 import Data.Tuple (Tuple(..))
 
 newtype Fuzzy a = Fuzzy
   { original :: a
-  , result   :: Map String (Maybe Result)
+  , result   :: StrMap (Maybe Result)
   , score    :: Rank
   }
 
 derive instance genericFuzzy :: Generic (Fuzzy a) _
-
 derive instance newtypeFuzzy :: Newtype (Fuzzy a) _
-
 instance eqFuzzy :: Eq a => Eq (Fuzzy a) where eq = genericEq
-
 instance showFuzzy :: Show a => Show (Fuzzy a) where show = genericShow
 
 newtype FuzzyStr = FuzzyStr
@@ -36,56 +33,55 @@ newtype FuzzyStr = FuzzyStr
   , score  :: Rank
   }
 
-newtype FuzzyStr' = FuzzyStr'
-  { substr :: String
-  , result :: Result
-  , score  :: Rank
-  , pos    :: Pos
-  }
-
 derive instance genericFuzzyStr :: Generic FuzzyStr _
-
 derive instance newtypeFuzzyStr :: Newtype FuzzyStr _
-
 instance eqFuzzyStr :: Eq FuzzyStr where eq = genericEq
-
 instance showFuzzyStr :: Show FuzzyStr where show = genericShow
 
-data Pos = Before | Between | Behind | Rest
+data Depth = Full | Word | Char
+
+derive instance genericDepth :: Generic Depth _
+instance eqDepth :: Eq Depth where eq = genericEq
+instance showDepth :: Show Depth where show = genericShow
+
+data Pos = Start | Prefix | Mid | Suffix | End
 
 derive instance genericPos :: Generic Pos _
-
 instance eqPos :: Eq Pos where eq = genericEq
-
 instance showPos :: Show Pos where show = genericShow
 
-data Rank = Rank Int Int Int Int | None
+data Rank = Rank Int Int Int Int Int Int | None
 
 derive instance genericRank :: Generic Rank _
-
 instance eqRank :: Eq Rank where eq = genericEq
-
 instance showRank :: Show Rank where show = genericShow
-
 instance ordRank :: Ord Rank where compare = genericCompare
 
 instance semiringRank :: Semiring Rank where
   add None r = r
   add r None = r
-  add (Rank w x y z) (Rank w' x' y' z') = Rank (w + w') (x + x') (y + y') (z + z')
+  add (Rank u v w x y z) (Rank u' v' w' x' y' z') =
+    Rank (u + u') (v + v') (w + w') (x + x') (y + y') (z + z')
   zero = None
   mul None _ = None
   mul _ None = None
-  mul (Rank w x y z) (Rank w' x' y' z') = Rank (w * w') (x * x') (y * y') (z * z')
-  one = Rank 1 1 1 1
+  mul (Rank u v w x y z) (Rank u' v' w' x' y' z') =
+    Rank (u * u') (v * v') (w * w') (x * x') (y * y') (z * z')
+  one = Rank 1 1 1 1 1 1
 
 type Result = Array (Either String String)
 
-match :: ∀ a. Boolean -> (a -> Map String String) -> String -> a -> Maybe (Fuzzy a)
+type MatchStrAcc =
+  { substr  :: String
+  , pos     :: Pos
+  , fuzzy   :: FuzzyStr
+  }
+
+match :: ∀ a. Boolean -> (a -> StrMap String) -> String -> a -> Maybe (Fuzzy a)
 match _ extract "" x =
   Just $ Fuzzy
     { original: x
-    , result: (\s -> Just [ Left s ]) <$> extract x
+    , result: (pure <<< pure <<< Left) <$> extract x
     , score: zero
     }
 match ignoreCase extract pattern x =
@@ -97,7 +93,7 @@ match ignoreCase extract pattern x =
       , score: foldl minScore None $ values matches
       }
   where
-    matches :: Map String (Maybe FuzzyStr)
+    matches :: StrMap (Maybe FuzzyStr)
     matches = matchStr ignoreCase pattern <$> extract x
 
     minScore :: Rank -> Maybe FuzzyStr -> Rank
@@ -111,67 +107,112 @@ matchStr _          ""      str =
     , score: None
     }
 matchStr ignoreCase pattern str =
-  after $ foldl matchCur initial (toCharArray pattern)
+  after $ foldl (matchStr' Full) initialAcc [ pattern ]
   where
-    initial :: Maybe FuzzyStr'
-    initial = Just $ FuzzyStr' { substr: str, result: mempty, score: zero, pos: Before }
+    initialAcc :: MatchStrAcc
+    initialAcc =
+      { substr: str
+      , pos: Start
+      , fuzzy: FuzzyStr
+        { result: mempty
+        , score: None
+        }
+      }
 
-    matchCur :: Maybe FuzzyStr' -> String -> Maybe FuzzyStr'
-    matchCur Nothing _ = Nothing
-    matchCur (Just (FuzzyStr' { substr, result, score, pos })) patChar =
-      case indexOf (Pattern patChar') substr' of
-           Nothing ->
-             Nothing
-           Just distance ->
-             Just $ fuzz distance
-             where
-               Tuple patChar' substr' =
-                 case ignoreCase of
-                   true -> Tuple (toLower patChar) (toLower substr)
-                   _    -> Tuple patChar substr
-
-               fuzz :: Int -> FuzzyStr'
-               fuzz distance =
-                 FuzzyStr'
-                   { substr: drop (distance + (length patChar)) substr
-                   , result: if distance == 0 then mapResult else appendResult
-                   , score: score + (scoreDistance pos distance)
-                   , pos: Between
-                   }
-                 where
-                   mapResult :: Result
-                   mapResult = case unsnoc result of
-                     Nothing -> appendResult
-                     Just { init, last } -> snoc init (last <> note "" (charAt distance substr))
-
-                   appendResult :: Result
-                   appendResult = result <> nextLeft <> nextRight
-
-                   nextLeft :: Result
-                   nextLeft = case distance of
-                     0 -> mempty
-                     _ -> [ Left $ take distance substr ]
-
-                   nextRight :: Result
-                   nextRight = [ note "" (charAt distance substr) ]
-
-    after :: Maybe FuzzyStr' -> Maybe FuzzyStr
-    after Nothing = Nothing
-    after (Just (FuzzyStr' { substr, result, score })) =
-      Just $ FuzzyStr { result: result <> if substr == "" then mempty else [ Left substr ]
-                      , score: score + scoreBehind + scoreRest
-                      }
+    after :: MatchStrAcc -> Maybe FuzzyStr
+    after { fuzzy: FuzzyStr { score: None } } = Nothing
+    after { substr, pos, fuzzy: FuzzyStr { result, score: score@(Rank s _ _ _ _ _) } } =
+      -- if there are no matches, this will evaluate to 2
+      if s - (length pattern) == 2
+         then Nothing
+         else Just $ FuzzyStr { result: nextResult, score: nextScore }
         where
-          lenRem = length substr
-          scoreBehind = scoreDistance Behind (fromMaybe (1 * lenRem) $ indexOf (Pattern " ") substr)
-          scoreRest = scoreDistance Rest lenRem
+          nextResult :: Result
+          nextResult = case substr of
+            "" -> result
+            _  -> snoc result (Left substr)
+
+          nextScore :: Rank
+          nextScore = score + (scoreDistance End $ length substr) + (scoreWord End 0 substr)
+
+    matchStr' :: Depth -> MatchStrAcc -> String -> MatchStrAcc
+    matchStr' depth { substr, pos, fuzzy: FuzzyStr { result, score } } pat =
+      case indexOf' pat' substr' of
+        Just distance ->
+          { substr: drop (distance + (length pat)) substr
+          , pos: Mid
+          , fuzzy: FuzzyStr
+            { result: nextResult distance
+            , score: nextScore distance
+            }
+          }
+        Nothing ->
+          case depth of
+            Full -> foldl (matchStr' Word) (nextAcc Start) $ words pat
+            Word -> foldl (matchStr' Char) (nextAcc Start) $ toCharArray pat
+            Char -> nextAcc pos
+        where
+          Tuple pat' substr' =
+            case ignoreCase of
+              true -> Tuple (toLower pat) (toLower substr)
+              _    -> Tuple pat substr
+
+          nextResult :: Int -> Result
+          nextResult d = case Tuple d (unsnoc result) of
+            Tuple 0 (Just { init, last }) -> snoc init (last <> nextRight d)
+            _                             -> result <> nextLeft d <> [ nextRight d ]
+
+          nextLeft :: Int -> Result
+          nextLeft d = case d of
+            0 -> mempty
+            _ -> [ Left $ take d substr ]
+
+          nextRight :: Int -> Either String String
+          nextRight d = Right $ take (length pat) (drop d substr)
+
+          nextScore :: Int -> Rank
+          nextScore d = case Tuple depth pos of
+            Tuple Word Mid -> score + (scoreDistance Start d)
+            _              -> score + (scoreDistance pos d) + (scoreWord pos d substr')
+
+          nextAcc :: Pos -> MatchStrAcc
+          nextAcc p =
+            { substr
+            , pos: p
+            , fuzzy: FuzzyStr
+              { result
+              , score: scoreDepth score
+              }
+            }
+
+scoreDepth :: Rank -> Rank
+scoreDepth = (+) (Rank 1 0 0 0 0 0)
 
 scoreDistance :: Pos -> Int -> Rank
 scoreDistance pos d =
-  m * (Rank d d d d)
+  m * (Rank d d d d d d)
   where
     m = case pos of
-      Before  -> Rank 0 1 0 0
-      Between -> Rank 1 0 0 0
-      Behind  -> Rank 0 0 1 0
-      Rest    -> Rank 0 0 0 1
+      Start  -> Rank 0 0 0 1 0 0
+      Prefix -> Rank 0 0 1 0 0 0
+      Mid    -> Rank 0 1 0 0 0 0
+      Suffix -> Rank 0 0 0 0 1 0
+      End    -> Rank 0 0 0 0 0 1
+
+scoreWord :: Pos -> Int -> String -> Rank
+scoreWord pos distance str =
+  case pos of
+    Start -> scoreDistance Prefix $ wordStart
+    End   -> scoreDistance Suffix $ wordEnd
+    _     -> None
+    where
+      before = take distance str
+      wordStart = (length before) - ((fromMaybe (-1) $ lastIndexOf' " " before) + 1)
+      after = length str
+      wordEnd = fromMaybe (1 * after) (indexOf' " " str)
+
+indexOf' :: String -> String -> Maybe Int
+indexOf' = indexOf <<< Pattern
+
+lastIndexOf' :: String -> String -> Maybe Int
+lastIndexOf' = lastIndexOf <<< Pattern
