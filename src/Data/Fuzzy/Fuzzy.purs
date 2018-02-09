@@ -27,6 +27,8 @@ derive instance genericFuzzy :: Generic (Fuzzy a) _
 derive instance newtypeFuzzy :: Newtype (Fuzzy a) _
 instance eqFuzzy :: Eq a => Eq (Fuzzy a) where eq = genericEq
 instance showFuzzy :: Show a => Show (Fuzzy a) where show = genericShow
+instance ordFuzzy :: Eq a => Ord (Fuzzy a) where
+  compare (Fuzzy { score }) (Fuzzy { score: score' }) = compare score score'
 
 newtype FuzzyStr = FuzzyStr
   { result :: Result
@@ -37,6 +39,8 @@ derive instance genericFuzzyStr :: Generic FuzzyStr _
 derive instance newtypeFuzzyStr :: Newtype FuzzyStr _
 instance eqFuzzyStr :: Eq FuzzyStr where eq = genericEq
 instance showFuzzyStr :: Show FuzzyStr where show = genericShow
+instance ordFuzzyStr :: Ord FuzzyStr where
+  compare (FuzzyStr { score }) (FuzzyStr { score: score' }) = compare score score'
 
 data Depth = Full | Word | Char
 
@@ -69,13 +73,13 @@ instance semiringRank :: Semiring Rank where
     Rank (u * u') (v * v') (w * w') (x * x') (y * y') (z * z')
   one = Rank 1 1 1 1 1 1
 
-type Result = Array (Either String String)
-
 type MatchStrAcc =
-  { substr  :: String
-  , pos     :: Pos
-  , fuzzy   :: FuzzyStr
+  { substr :: String
+  , pos    :: Pos
+  , fuzzy  :: FuzzyStr
   }
+
+type Result = Array (Either String String)
 
 match :: ∀ a. Boolean -> (a -> StrMap String) -> String -> a -> Maybe (Fuzzy a)
 match _ extract "" x =

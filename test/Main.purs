@@ -5,6 +5,7 @@ import Prelude
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.AVar (AVAR)
 import Control.Monad.Eff.Console (CONSOLE)
+import Data.Array (sort)
 import Data.Either (Either(..))
 import Data.Fuzzy (Fuzzy(..), FuzzyStr(..), Rank(..), match, matchStr)
 import Data.Generic.Rep (class Generic)
@@ -207,6 +208,26 @@ main = runTest do
       let original = TR { name: "FOO BAR", value: "FOOBAR" }
       let result = match false toMapStr "foo bar" original
       equal Nothing result
+
+  suite "compare" do
+    test "compare works as expected on FuzzyStr" do
+      let matchFooBar = matchStr true "foo bar"
+      let a = matchFooBar "f"
+      let b = matchFooBar "Foo bar"
+      let c = matchFooBar "Flood"
+      let result = sort [a, b, c]
+      let expected = [b, c, a]
+      equal expected result
+
+    test "compare works as expected on Fuzzy" do
+      let matchFooBar = match true toMapStr "foo bar"
+      let a = matchFooBar $ TR { name: "FAN", value: "fan" }
+      let b = matchFooBar $ TR { name: "FAM", value: "fam" }
+      let c = matchFooBar $ TR { name: "Foobar", value: "foo" }
+      let result = sort [a, b, c]
+      let expected = [c, a, b]
+      equal expected result
+
   where
     toMapStr :: TestRecord -> StrMap String
     toMapStr (TR { name, value }) = fromFoldable [ Tuple "name" name, Tuple "value" value ]
