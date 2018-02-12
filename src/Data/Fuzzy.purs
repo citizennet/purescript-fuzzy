@@ -162,13 +162,13 @@ matchStr ignoreCase pattern str =
       }
       pat =
       case indexOf' pat' substr' of
-        Just distance ->
-          { substr: drop (distance + (length pat)) substr
+        Just spacing ->
+          { substr: drop (spacing + (length pat)) substr
           , pos: Mid
           , fuzzy: FuzzyStr
             { original
-            , result: nextResult distance
-            , distance: nextDistance distance
+            , result: nextResult spacing
+            , distance: nextDistance spacing
             , ratio
             }
           }
