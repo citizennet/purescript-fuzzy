@@ -24,7 +24,7 @@ jobs:
             - v1.0-npm-cache
 
       - run:
-          name: Install dependencies from NPM and Bower (including CSS)
+          name: Install dependencies from NPM and Bower
           command: npm i && bower i
 
       - save_cache:

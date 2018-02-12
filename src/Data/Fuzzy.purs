@@ -1,10 +1,17 @@
-module Data.Fuzzy where
+module Data.Fuzzy
+  ( Fuzzy(..)
+  , FuzzyStr(..)
+  , Distance(..)
+  , Result
+  , match
+  , matchStr
+  ) where
 
 import Prelude
 
 import Data.Array (snoc, unsnoc)
 import Data.Either (Either(..))
-import Data.Foldable (all, foldl)
+import Data.Foldable (foldl)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Ord (genericCompare)
