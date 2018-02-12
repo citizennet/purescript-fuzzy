@@ -9,18 +9,21 @@ import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Ord (genericCompare)
 import Data.Generic.Rep.Show (genericShow)
-import Data.StrMap (StrMap, values)
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Monoid (mempty)
+import Data.Monoid (class Monoid, mempty)
 import Data.Newtype (class Newtype, unwrap)
+import Data.Rational (Rational, (%))
+import Data.StrMap (StrMap, values)
 import Data.String (Pattern(..), drop, indexOf, lastIndexOf, take, toLower)
-import Data.String.Utils (length, toCharArray, words)
+import Data.String.Utils (length, replaceAll, toCharArray, words)
 import Data.Tuple (Tuple(..))
+import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 
 newtype Fuzzy a = Fuzzy
   { original :: a
-  , result   :: StrMap (Maybe Result)
-  , score    :: Rank
+  , result   :: StrMap Result
+  , distance :: Distance
+  , ratio    :: Rational
   }
 
 derive instance genericFuzzy :: Generic (Fuzzy a) _
@@ -28,11 +31,13 @@ derive instance newtypeFuzzy :: Newtype (Fuzzy a) _
 instance eqFuzzy :: Eq a => Eq (Fuzzy a) where eq = genericEq
 instance showFuzzy :: Show a => Show (Fuzzy a) where show = genericShow
 instance ordFuzzy :: Eq a => Ord (Fuzzy a) where
-  compare (Fuzzy { score }) (Fuzzy { score: score' }) = compare score score'
+  compare (Fuzzy { distance }) (Fuzzy { distance: distance' }) = compare distance distance'
 
 newtype FuzzyStr = FuzzyStr
-  { result :: Result
-  , score  :: Rank
+  { original :: String
+  , result   :: Result
+  , distance :: Distance
+  , ratio    :: Rational
   }
 
 derive instance genericFuzzyStr :: Generic FuzzyStr _
@@ -40,13 +45,13 @@ derive instance newtypeFuzzyStr :: Newtype FuzzyStr _
 instance eqFuzzyStr :: Eq FuzzyStr where eq = genericEq
 instance showFuzzyStr :: Show FuzzyStr where show = genericShow
 instance ordFuzzyStr :: Ord FuzzyStr where
-  compare (FuzzyStr { score }) (FuzzyStr { score: score' }) = compare score score'
+  compare (FuzzyStr { distance }) (FuzzyStr { distance: distance' }) = compare distance distance'
 
-data Depth = Full | Word | Char
+data Scope = Full | Word | Char
 
-derive instance genericDepth :: Generic Depth _
-instance eqDepth :: Eq Depth where eq = genericEq
-instance showDepth :: Show Depth where show = genericShow
+derive instance genericScope :: Generic Scope _
+instance eqScope :: Eq Scope where eq = genericEq
+instance showScope :: Show Scope where show = genericShow
 
 data Pos = Start | Prefix | Mid | Suffix | End
 
@@ -54,24 +59,30 @@ derive instance genericPos :: Generic Pos _
 instance eqPos :: Eq Pos where eq = genericEq
 instance showPos :: Show Pos where show = genericShow
 
-data Rank = Rank Int Int Int Int Int Int | None
+data Distance = Distance Int Int Int Int Int Int | None
 
-derive instance genericRank :: Generic Rank _
-instance eqRank :: Eq Rank where eq = genericEq
-instance showRank :: Show Rank where show = genericShow
-instance ordRank :: Ord Rank where compare = genericCompare
+derive instance genericDistance :: Generic Distance _
+instance eqDistance :: Eq Distance where eq = genericEq
+instance showDistance :: Show Distance where show = genericShow
+instance ordDistance :: Ord Distance where compare = genericCompare
 
-instance semiringRank :: Semiring Rank where
-  add None r = r
-  add r None = r
-  add (Rank u v w x y z) (Rank u' v' w' x' y' z') =
-    Rank (u + u') (v + v') (w + w') (x + x') (y + y') (z + z')
-  zero = None
-  mul None _ = None
-  mul _ None = None
-  mul (Rank u v w x y z) (Rank u' v' w' x' y' z') =
-    Rank (u * u') (v * v') (w * w') (x * x') (y * y') (z * z')
-  one = Rank 1 1 1 1 1 1
+instance semigroupDistance :: Semigroup Distance where
+  append None d = d
+  append d None = d
+  append (Distance u v w x y z) (Distance u' v' w' x' y' z') =
+    Distance (u + u') (v + v') (w + w') (x + x') (y + y') (z + z')
+
+instance monoidDistance :: Monoid Distance where
+  mempty = None
+
+instance arbitraryDistance :: Arbitrary Distance where
+  arbitrary = Distance
+    <$> arbitrary
+    <*> arbitrary
+    <*> arbitrary
+    <*> arbitrary
+    <*> arbitrary
+    <*> arbitrary
 
 type MatchStrAcc =
   { substr :: String
@@ -81,34 +92,41 @@ type MatchStrAcc =
 
 type Result = Array (Either String String)
 
-match :: ∀ a. Boolean -> (a -> StrMap String) -> String -> a -> Maybe (Fuzzy a)
+match :: ∀ a. Boolean -> (a -> StrMap String) -> String -> a -> Fuzzy a
 match _ extract "" x =
-  Just $ Fuzzy
+  Fuzzy
     { original: x
-    , result: (pure <<< pure <<< Left) <$> extract x
-    , score: zero
+    , result: (pure <<< Left) <$> extract x
+    , distance: mempty
+    , ratio: 1 % 1
     }
 match ignoreCase extract pattern x =
-  case all ((==) Nothing) matches of
-    true -> Nothing
-    _    -> Just $ Fuzzy
-      { original: x
-      , result: map (_.result <<< unwrap) <$> matches
-      , score: foldl minScore None $ values matches
-      }
+  Fuzzy
+    { original: x
+    , result: (_.result <<< unwrap) <$> matches
+    , distance: foldl minDistance mempty $ fuzzies
+    , ratio: foldl maxRatio (0 % 1) $ fuzzies
+    }
   where
-    matches :: StrMap (Maybe FuzzyStr)
+    matches :: StrMap FuzzyStr
     matches = matchStr ignoreCase pattern <$> extract x
 
-    minScore :: Rank -> Maybe FuzzyStr -> Rank
-    minScore r Nothing = r
-    minScore r (Just (FuzzyStr { score })) = min r score
+    fuzzies :: Array FuzzyStr
+    fuzzies = values matches
 
-matchStr :: Boolean -> String -> String -> Maybe FuzzyStr
-matchStr _          ""      str =
-  Just $ FuzzyStr
-    { result: [ Left str ]
-    , score: None
+    minDistance :: Distance -> FuzzyStr -> Distance
+    minDistance d (FuzzyStr { distance }) = min d distance
+
+    maxRatio :: Rational -> FuzzyStr -> Rational
+    maxRatio r (FuzzyStr { ratio }) = max r ratio
+
+matchStr :: Boolean -> String -> String -> FuzzyStr
+matchStr _ "" str =
+  FuzzyStr
+    { original: str
+    , result: [ Left str ]
+    , distance: None
+    , ratio: 1 % 1
     }
 matchStr ignoreCase pattern str =
   after $ foldl (matchStr' Full) initialAcc [ pattern ]
@@ -118,40 +136,37 @@ matchStr ignoreCase pattern str =
       { substr: str
       , pos: Start
       , fuzzy: FuzzyStr
-        { result: mempty
-        , score: None
+        { original: str
+        , result: mempty
+        , distance: mempty
+        , ratio: 1 % 1
         }
       }
 
-    after :: MatchStrAcc -> Maybe FuzzyStr
-    after { fuzzy: FuzzyStr { score: None } } = Nothing
-    after { substr, pos, fuzzy: FuzzyStr { result, score: score@(Rank s _ _ _ _ _) } } =
-      -- if there are no matches, this will evaluate to 2
-      if s - (length pattern) == 2
-         then Nothing
-         else Just $ FuzzyStr { result: nextResult, score: nextScore }
-        where
-          nextResult :: Result
-          nextResult = case substr of
-            "" -> result
-            _  -> snoc result (Left substr)
+    chars :: Int
+    chars = length $ replaceAll " " "" pattern
 
-          nextScore :: Rank
-          nextScore = score + (scoreDistance End $ length substr) + (scoreWord End 0 substr)
-
-    matchStr' :: Depth -> MatchStrAcc -> String -> MatchStrAcc
-    matchStr' depth { substr, pos, fuzzy: FuzzyStr { result, score } } pat =
+    matchStr' :: Scope -> MatchStrAcc -> String -> MatchStrAcc
+    matchStr'
+      scope
+      { substr
+      , pos
+      , fuzzy: FuzzyStr { original, result, distance, ratio }
+      }
+      pat =
       case indexOf' pat' substr' of
         Just distance ->
           { substr: drop (distance + (length pat)) substr
           , pos: Mid
           , fuzzy: FuzzyStr
-            { result: nextResult distance
-            , score: nextScore distance
+            { original
+            , result: nextResult distance
+            , distance: nextDistance distance
+            , ratio
             }
           }
         Nothing ->
-          case depth of
+          case scope of
             Full -> foldl (matchStr' Word) (nextAcc Start) $ words pat
             Word -> foldl (matchStr' Char) (nextAcc Start) $ toCharArray pat
             Char -> nextAcc pos
@@ -174,41 +189,54 @@ matchStr ignoreCase pattern str =
           nextRight :: Int -> Either String String
           nextRight d = Right $ take (length pat) (drop d substr)
 
-          nextScore :: Int -> Rank
-          nextScore d = case Tuple depth pos of
-            Tuple Word Mid -> score + (scoreDistance Start d)
-            _              -> score + (scoreDistance pos d) + (scoreWord pos d substr')
+          nextDistance :: Int -> Distance
+          nextDistance d = case Tuple scope pos of
+            Tuple Word Mid -> distance <> (scoreDistance Start d)
+            _              -> distance <> (scoreDistance pos d) <> (scoreWord pos d substr')
 
           nextAcc :: Pos -> MatchStrAcc
           nextAcc p =
             { substr
             , pos: p
             , fuzzy: FuzzyStr
-              { result
-              , score: scoreDepth score
+              { original
+              , result
+              , distance: scoreScope distance
+              , ratio: if scope == Char then ratio - (1 % chars) else ratio
               }
             }
 
-scoreDepth :: Rank -> Rank
-scoreDepth = (+) (Rank 1 0 0 0 0 0)
+    after :: MatchStrAcc -> FuzzyStr
+    after { substr, pos, fuzzy: FuzzyStr { original, result, distance, ratio } } =
+      FuzzyStr { original, result: nextResult, distance: nextDistance, ratio }
+        where
+          nextResult :: Result
+          nextResult = case substr of
+            "" -> result
+            _  -> snoc result (Left substr)
 
-scoreDistance :: Pos -> Int -> Rank
-scoreDistance pos d =
-  m * (Rank d d d d d d)
-  where
-    m = case pos of
-      Start  -> Rank 0 0 0 1 0 0
-      Prefix -> Rank 0 0 1 0 0 0
-      Mid    -> Rank 0 1 0 0 0 0
-      Suffix -> Rank 0 0 0 0 1 0
-      End    -> Rank 0 0 0 0 0 1
+          nextDistance :: Distance
+          nextDistance | ratio == (0 % 1) = distance
+                       | otherwise        = distance
+                                            <> (scoreDistance End $ length substr)
+                                            <> (scoreWord End 0 substr)
 
-scoreWord :: Pos -> Int -> String -> Rank
+scoreScope :: Distance -> Distance
+scoreScope = (<>) (Distance 1 0 0 0 0 0)
+
+scoreDistance :: Pos -> Int -> Distance
+scoreDistance Start  d = Distance 0 0 0 d 0 0
+scoreDistance Prefix d = Distance 0 0 d 0 0 0
+scoreDistance Mid    d = Distance 0 d 0 0 0 0
+scoreDistance Suffix d = Distance 0 0 0 0 d 0
+scoreDistance End    d = Distance 0 0 0 0 0 d
+
+scoreWord :: Pos -> Int -> String -> Distance
 scoreWord pos distance str =
   case pos of
     Start -> scoreDistance Prefix $ wordStart
     End   -> scoreDistance Suffix $ wordEnd
-    _     -> None
+    _     -> mempty
     where
       before = take distance str
       wordStart = (length before) - ((fromMaybe (-1) $ lastIndexOf' " " before) + 1)
