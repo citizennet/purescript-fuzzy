@@ -64,7 +64,7 @@ main = runTest do
     test "matches empty pattern" do
       let result = matchStr false "" "does not matter"
       let expected = FuzzyStr { original: "does not matter"
-                              , result: [ Left "does not matter" ]
+                              , segments: [ Left "does not matter" ]
                               , distance: None
                               , ratio: 1 % 1
                               }
@@ -73,7 +73,7 @@ main = runTest do
     test "pattern matches full string" do
       let result = matchStr false "foo bar" "foo bar"
       let expected = FuzzyStr { original: "foo bar"
-                              , result: [ Right "foo bar" ]
+                              , segments: [ Right "foo bar" ]
                               , distance: Distance 0 0 0 0 0 0
                               , ratio: 1 % 1
                               }
@@ -82,10 +82,10 @@ main = runTest do
     test "full pattern matches inside larger string" do
       let result = matchStr false "foo bar" "fiz baz foo bar buz"
       let expected = FuzzyStr { original: "fiz baz foo bar buz"
-                              , result: [ Left  "fiz baz "
-                                        , Right "foo bar"
-                                        , Left  " buz"
-                                        ]
+                              , segments: [ Left  "fiz baz "
+                                          , Right "foo bar"
+                                          , Left  " buz"
+                                          ]
                               , distance: Distance 0 0 0 8 0 4
                               , ratio: 1 % 1
                               }
@@ -94,11 +94,11 @@ main = runTest do
     test "full words in pattern match inside string" do
       let result = matchStr false "foo bar" "food barn"
       let expected = FuzzyStr { original: "food barn"
-                              , result: [ Right "foo"
-                                        , Left  "d "
-                                        , Right "bar"
-                                        , Left  "n"
-                                        ]
+                              , segments: [ Right "foo"
+                                          , Left  "d "
+                                          , Right "bar"
+                                          , Left  "n"
+                                          ]
                               , distance: Distance 1 0 0 2 1 1
                               , ratio: 1 % 1
                               }
@@ -107,16 +107,16 @@ main = runTest do
     test "all chars in pattern match inside string" do
       let result = matchStr false "foo bar" "a foul oat bear table"
       let expected = FuzzyStr { original: "a foul oat bear table"
-                              , result: [ Left  "a "
-                                        , Right "fo"
-                                        , Left  "ul "
-                                        , Right "o"
-                                        , Left  "at "
-                                        , Right "b"
-                                        , Left  "e"
-                                        , Right "ar"
-                                        , Left  " table"
-                                        ]
+                              , segments: [ Left  "a "
+                                          , Right "fo"
+                                          , Left  "ul "
+                                          , Right "o"
+                                          , Left  "at "
+                                          , Right "b"
+                                          , Left  "e"
+                                          , Right "ar"
+                                          , Left  " table"
+                                          ]
                               , distance: Distance 3 4 0 5 0 6
                               , ratio: 1 % 1
                               }
@@ -125,15 +125,15 @@ main = runTest do
     test "last of two words and rest of chars in pattern match string" do
       let result = matchStr false "foo bar" "flavor of barnacle"
       let expected = FuzzyStr { original: "flavor of barnacle"
-                              , result: [ Right "f"
-                                        , Left  "lav"
-                                        , Right "o"
-                                        , Left  "r "
-                                        , Right "o"
-                                        , Left  "f "
-                                        , Right "bar"
-                                        , Left  "nacle"
-                                        ]
+                              , segments: [ Right "f"
+                                          , Left  "lav"
+                                          , Right "o"
+                                          , Left  "r "
+                                          , Right "o"
+                                          , Left  "f "
+                                          , Right "bar"
+                                          , Left  "nacle"
+                                          ]
                               , distance: Distance 2 5 0 2 5 5
                               , ratio: 1 % 1
                               }
@@ -142,15 +142,15 @@ main = runTest do
     test "first of two words and rest of chars in pattern match string" do
       let result = matchStr false "foo bar" "food abean wars"
       let expected = FuzzyStr { original: "food abean wars"
-                              , result: [ Right "foo"
-                                        , Left  "d a"
-                                        , Right "b"
-                                        , Left  "e"
-                                        , Right "a"
-                                        , Left  "n wa"
-                                        , Right "r"
-                                        , Left  "s"
-                                        ]
+                              , segments: [ Right "foo"
+                                          , Left  "d a"
+                                          , Right "b"
+                                          , Left  "e"
+                                          , Right "a"
+                                          , Left  "n wa"
+                                          , Right "r"
+                                          , Left  "s"
+                                          ]
                               , distance: Distance 2 5 1 3 1 1
                               , ratio: 1 % 1
                               }
@@ -159,10 +159,10 @@ main = runTest do
     test "only first word in pattern matches" do
       let result = matchStr false "foo bar" "bar afood"
       let expected = FuzzyStr { original: "bar afood"
-                              , result: [ Left  "bar a"
-                                        , Right "foo"
-                                        , Left  "d"
-                                        ]
+                              , segments: [ Left  "bar a"
+                                          , Right "foo"
+                                          , Left  "d"
+                                          ]
                               , distance: Distance 5 0 1 5 1 1
                               , ratio: 1 % 2
                               }
@@ -171,14 +171,14 @@ main = runTest do
     test "only some chars in pattern match" do
       let result = matchStr false "foo bar" "good burn"
       let expected = FuzzyStr { original: "good burn"
-                              , result: [ Left  "g"
-                                        , Right "oo"
-                                        , Left  "d "
-                                        , Right "b"
-                                        , Left  "u"
-                                        , Right "r"
-                                        , Left  "n"
-                                        ]
+                              , segments: [ Left  "g"
+                                          , Right "oo"
+                                          , Left  "d "
+                                          , Right "b"
+                                          , Left  "u"
+                                          , Right "r"
+                                          , Left  "n"
+                                          ]
                               , distance: Distance 5 1 1 3 1 1
                               , ratio: 2 % 3
                               }
@@ -187,10 +187,10 @@ main = runTest do
     test "only one char in pattern matches" do
       let result = matchStr false "foo bar" "standing"
       let expected = FuzzyStr { original: "standing"
-                              , result: [ Left  "st"
-                                        , Right "a"
-                                        , Left  "nding"
-                                        ]
+                              , segments: [ Left  "st"
+                                          , Right "a"
+                                          , Left  "nding"
+                                          ]
                               , distance: Distance 8 0 2 2 5 5
                               , ratio: 1 % 6
                               }
@@ -199,7 +199,7 @@ main = runTest do
     test "none of pattern matches" do
       let result = matchStr false "foo bar" "FOO BAR"
       let expected = FuzzyStr { original: "FOO BAR"
-                              , result: [ Left "FOO BAR" ]
+                              , segments: [ Left "FOO BAR" ]
                               , distance: Distance 9 0 0 0 0 0
                               , ratio: 0 % 1
                               }
@@ -208,7 +208,7 @@ main = runTest do
     test "full pattern matches, ignoring case" do
       let result = matchStr true "foo bar" "FOO BAR"
       let expected = FuzzyStr { original: "FOO BAR"
-                              , result: [ Right "FOO BAR" ]
+                              , segments: [ Right "FOO BAR" ]
                               , distance: Distance 0 0 0 0 0 0
                               , ratio: 1 % 1
                               }
@@ -217,12 +217,12 @@ main = runTest do
     test "some chars in pattern match, ignoring case" do
       let result = matchStr true "foo bar" "GoOd Barn"
       let expected = FuzzyStr { original: "GoOd Barn"
-                              , result: [ Left  "G"
-                                        , Right "oO"
-                                        , Left  "d "
-                                        , Right "Bar"
-                                        , Left  "n"
-                                        ]
+                              , segments: [ Left  "G"
+                                          , Right "oO"
+                                          , Left  "d "
+                                          , Right "Bar"
+                                          , Left  "n"
+                                          ]
                               , distance: Distance 3 0 1 3 1 1
                               , ratio: 5 % 6
                               }
@@ -233,7 +233,7 @@ main = runTest do
       let original = TR { name: "Foo Bar", value: "foobar" }
       let result = match true toMapStr "foo bar" original
       let expected = Fuzzy { original
-                           , result: fromFoldable
+                           , segments: fromFoldable
                              [ Tuple "name" [ Right "Foo Bar" ]
                              , Tuple "value" [ Right "foobar" ]
                              ]
@@ -246,7 +246,7 @@ main = runTest do
       let original = TR { name: "Flood Gates", value: "123456788" }
       let result = match true toMapStr "foo bar" original
       let expected = Fuzzy { original
-                           , result: fromFoldable
+                           , segments: fromFoldable
                              [ Tuple "name" [ Right "F"
                                             , Left  "l"
                                             , Right "oo"
@@ -265,7 +265,7 @@ main = runTest do
       let original = TR { name: "FOO BAR", value: "FOOBAR" }
       let result = match false toMapStr "foo bar" original
       let expected = Fuzzy { original
-                           , result: fromFoldable
+                           , segments: fromFoldable
                              [ Tuple "name" [ Left "FOO BAR" ]
                              , Tuple "value" [ Left "FOOBAR" ]
                              ]
