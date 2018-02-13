@@ -360,6 +360,8 @@ match ignoreCase extract pattern val =
     maxRatio :: Rational -> FuzzyStr -> Rational
     maxRatio r (FuzzyStr { ratio }) = max r ratio
 
+-- Private functions
+
 scoreScope :: Distance -> Distance
 scoreScope = (<>) (Distance 1 0 0 0 0 0)
 
