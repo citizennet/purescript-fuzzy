@@ -8,10 +8,20 @@
   ],
   "dependencies": {
     "purescript-prelude": "^3.1.1",
-    "purescript-console": "^3.0.0"
+    "purescript-console": "^3.0.0",
+    "purescript-strings": "^3.4.0",
+    "purescript-foldable-traversable": "^3.7.1",
+    "purescript-tuples": "^4.1.0",
+    "purescript-stringutils": "^0.0.7",
+    "purescript-maps": "^3.6.0",
+    "purescript-newtype": "^2.0.0",
+    "purescript-generics-rep": "^5.4.0",
+    "purescript-rationals": "^4.0.0",
+    "purescript-quickcheck": "^4.6.1"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0",
-    "purescript-test-unit": "^13.0.0"
+    "purescript-test-unit": "^13.0.0",
+    "purescript-quickcheck-laws": "^3.0.1"
   }
 }
