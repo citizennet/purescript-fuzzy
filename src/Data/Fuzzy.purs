@@ -33,7 +33,7 @@ import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 -- | For example, when matching the pattern `"foo bar"` against the value
 -- | `"food barn"`, the resulting `Segments` would be:
 -- |
--- | ```[ Right "foo", Left "d ", Right "bar" ]```
+-- | ```[ Right "foo", Left "d ", Right "bar", Left "n" ]```
 
 type Segments = Array (Either String String)
 
