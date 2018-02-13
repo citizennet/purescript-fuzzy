@@ -1,6 +1,23 @@
 {
   "name": "purescript-text-fuzzy",
+  "homepage": "https://github.com/citizennet/purescript-fuzzy",
+  "authors": [
+    "Dave Zuch <https://github.com/whoadave>"
+  ],
+  "description": "A type-safe fuzzy string matcher",
+  "keywords": [
+    "purescript",
+    "fuzzy",
+    "levenshtein",
+    "search",
+    "autocomplete",
+    "typeahead"
+  ],
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:citizennet/purescript-fuzzy.git"
+  },
   "ignore": [
     "**/.*",
     "node_modules",
