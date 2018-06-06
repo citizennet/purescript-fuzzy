@@ -15,6 +15,7 @@ import Prelude
 import Data.Array (snoc, unsnoc)
 import Data.Either (Either(..))
 import Data.Foldable (foldl)
+import Data.Function (on)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Ord (genericCompare)
@@ -123,7 +124,7 @@ derive instance newtypeFuzzyStr :: Newtype FuzzyStr _
 instance eqFuzzyStr :: Eq FuzzyStr where eq = genericEq
 instance showFuzzyStr :: Show FuzzyStr where show = genericShow
 instance ordFuzzyStr :: Ord FuzzyStr where
-  compare (FuzzyStr { distance }) (FuzzyStr { distance: distance' }) = compare distance distance'
+  compare = compare `on` (_.distance <<< unwrap)
 
 -- | Data representing the result of matching any polymorphic value to a string pattern
 -- |
@@ -149,7 +150,7 @@ derive instance newtypeFuzzy :: Newtype (Fuzzy a) _
 instance eqFuzzy :: Eq a => Eq (Fuzzy a) where eq = genericEq
 instance showFuzzy :: Show a => Show (Fuzzy a) where show = genericShow
 instance ordFuzzy :: Eq a => Ord (Fuzzy a) where
-  compare (Fuzzy { distance }) (Fuzzy { distance: distance' }) = compare distance distance'
+  compare = compare `on` (_.distance <<< unwrap)
 
 -- Private data types
 

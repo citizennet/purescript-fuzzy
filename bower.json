@@ -40,6 +40,7 @@
   "devDependencies": {
     "purescript-psci-support": "^3.0.0",
     "purescript-test-unit": "^13.0.0",
-    "purescript-quickcheck-laws": "^3.0.1"
+    "purescript-quickcheck-laws": "^3.0.1",
+    "purescript-datetime": "^3.4.1"
   }
 }

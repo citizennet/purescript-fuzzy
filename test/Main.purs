@@ -8,15 +8,22 @@ import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Random (RANDOM)
-import Data.Array (sort)
+import Data.Array (find, reverse, sort)
+import Data.Date (Date, Day, Month(..), Year, canonicalDate, day, month, weekday, year)
+import Data.DateTime (adjust, date)
+import Data.DateTime.Instant (fromDate, toDateTime)
 import Data.Either (Either(..))
+import Data.Enum (class Enum, fromEnum, pred, succ, toEnum)
 import Data.Fuzzy (Fuzzy(..), FuzzyStr(..), Distance(..), match, matchStr)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
+import Data.Maybe (Maybe(..), fromJust)
 import Data.Rational ((%))
 import Data.StrMap (StrMap, fromFoldable)
+import Data.Time.Duration (Days(..))
 import Data.Tuple (Tuple(..))
+import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Laws (checkLaws)
 import Test.QuickCheck.Laws.Data (checkMonoid, checkSemigroup)
 import Test.Unit (suite, test)
@@ -30,32 +37,32 @@ derive instance genericTestRecord :: Generic TestRecord _
 instance eqTestRecord :: Eq TestRecord where eq = genericEq
 instance showTestRecord :: Show TestRecord where show = genericShow
 
-checkDistance ::
-  ∀ e
-  . Eff
-    ( console :: CONSOLE
-    , random :: RANDOM
-    , exception :: EXCEPTION
-    | e
-    )
-    Unit
+checkDistance
+  :: ∀ e
+   . Eff
+     ( console :: CONSOLE
+     , random :: RANDOM
+     , exception :: EXCEPTION
+     | e
+     )
+     Unit
 checkDistance = checkLaws "Distance" do
   checkSemigroup prxDistance
   checkMonoid prxDistance
   where
     prxDistance = Proxy :: Proxy Distance
 
-main ::
-  ∀ e
-  . Eff
-    ( console :: CONSOLE
-    , testOutput :: TESTOUTPUT
-    , avar :: AVAR
-    , exception :: EXCEPTION
-    , random :: RANDOM
-    | e
-    )
-    Unit
+main
+  :: ∀ e
+   . Eff
+     ( console :: CONSOLE
+     , testOutput :: TESTOUTPUT
+     , avar :: AVAR
+     , exception :: EXCEPTION
+     , random :: RANDOM
+     | e
+     )
+     Unit
 main = runTest do
   suite "laws" do
     test "Distance abides typeclass laws" $ liftEff checkDistance
@@ -293,6 +300,125 @@ main = runTest do
       let expected = [c, a, b]
       equal expected result
 
+  suite "date" do
+    test "match nearest wednesday" do
+      let matchWed = match true dateToMapStr "wed"
+      let result = firstMatchingDate $ matchWed <$> dates
+      let expected = Just $ matchWed $ unsafeMkDate 2018 11 7
+      equal expected result
+
+    test "match nearest jul 4" do
+      let matchJul4 = match true dateToMapStr "jul 4"
+      let result = firstMatchingDate $ matchJul4 <$> dates
+      let expected = Just $ matchJul4 $ unsafeMkDate 2019 7 4
+      equal expected result
+
+    test "match nearest jul 4 2018" do
+      let matchJul4_2018 = match true dateToMapStr "jul 4 2018"
+      let result = firstMatchingDate $ matchJul4_2018 <$> dates
+      let expected = Just $ matchJul4_2018 $ unsafeMkDate 2018 7 4
+      equal expected result
+
+    test "match nearest 12/25" do
+      let match12_25 = match true dateToMapStr "12 25"
+      let result = firstMatchingDate $ match12_25 <$> dates
+      let expected = Just $ match12_25 $ unsafeMkDate 2018 12 25
+      equal expected result
+
+    test "match 12/25/19" do
+      let match12_25_19 = match true dateToMapStr "12 25 19"
+      let result = firstMatchingDate $ match12_25_19 <$> dates
+      let expected = Just $ match12_25_19 $ unsafeMkDate 2019 12 25
+      equal expected result
+
+    test "match 12/25/17" do
+      let match12_25_17 = match true dateToMapStr "12 25 17"
+      let result = firstMatchingDate $ match12_25_17 <$> dates
+      let expected = Just $ match12_25_17 $ unsafeMkDate 2017 12 25
+      equal expected result
+
   where
     toMapStr :: TestRecord -> StrMap String
     toMapStr (TR { name, value }) = fromFoldable [ Tuple "name" name, Tuple "value" value ]
+
+    firstMatchingDate :: Array (Fuzzy Date) -> Maybe (Fuzzy Date)
+    firstMatchingDate = find match'
+      where
+        match' (Fuzzy { ratio }) = ratio == 1 % 1
+
+    dateToMapStr :: Date -> StrMap String
+    dateToMapStr d =
+      fromFoldable
+        [ Tuple "mdy1" $ sYearMonth <> " " <> sDay <> " " <> sYear
+        , Tuple "mdy2" $ sMonth <> " " <> sDay <> " " <> sYear
+        , Tuple "weekday" $ sWeekDay
+        , Tuple "wmdy1" $ sWeekDay <> " " <> sYearMonth <> " " <> sDay <> " " <> sYear
+        , Tuple "ymd" $ sYear <> " " <> sMonth <> " " <> sDay
+        ]
+        where
+          sYear = show $ fromEnum $ year d
+          sMonth = show $ fromEnum $ month d
+          sYearMonth = show $ month d
+          sDay = show $ fromEnum $ day d
+          sWeekDay = show $ weekday d
+
+    dates :: Array Date
+    dates = dateRange s e <> dateRange (prevYear s) (prevMonth s)
+      where
+        s = unsafeMkDate 2018 11 1
+        e = unsafeMkDate 2020 10 31
+
+    dateRange :: Date -> Date -> Array Date
+    dateRange s e = go s e []
+      where
+        go start end acc
+          | start == end = acc <> [start]
+          | start >  end = reverse $ go end start acc
+          | otherwise    = go (nextDay start) end (acc <> [start])
+
+    nextDay :: Date -> Date
+    nextDay = adjustDaysBy 1.0
+
+    unsafeMkDate :: Int -> Int -> Int -> Date
+    unsafeMkDate y m d = canonicalDate year month day
+      where
+        year  = unsafeMkYear y
+        month = unsafeMkMonth m
+        day   = unsafeMkDay d
+
+    unsafeMkYear :: Int -> Year
+    unsafeMkYear = unsafePartial fromJust <<< toEnum
+
+    unsafeMkMonth :: Int -> Month
+    unsafeMkMonth = unsafePartial fromJust <<< toEnum
+
+    unsafeMkDay :: Int -> Day
+    unsafeMkDay = unsafePartial fromJust <<< toEnum
+
+    nextYear :: Date -> Date
+    nextYear d = canonicalDate (unsafeSucc (year d)) (month d) (day d)
+
+    prevYear :: Date -> Date
+    prevYear d = canonicalDate (unsafePred (year d)) (month d) (day d)
+
+    unsafeSucc :: ∀ a. Enum a => a -> a
+    unsafeSucc = unsafePartial fromJust <<< succ
+
+    unsafePred :: ∀ a. Enum a => a -> a
+    unsafePred = unsafePartial fromJust <<< pred
+
+    nextMonth :: Date -> Date
+    nextMonth d = case (month d) of
+      December -> canonicalDate (unsafeSucc (year d)) January (day d)
+      other    -> canonicalDate (year d) (unsafeSucc (month d)) (day d)
+
+    prevMonth :: Date -> Date
+    prevMonth d = case (month d) of
+      January -> canonicalDate (unsafePred (year d)) December (day d)
+      other   -> canonicalDate (year d) (unsafePred (month d)) (day d)
+
+    adjustDaysBy :: Number -> Date -> Date
+    adjustDaysBy n = unsafePartial fromJust <<< next n
+      where
+        next :: Number -> Date -> Maybe Date
+        next dur d = date <$> (adjust (Days dur) (toDateTime $ fromDate d))
