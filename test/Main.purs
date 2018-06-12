@@ -2,12 +2,9 @@ module Test.Main where
 
 import Prelude
 
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.AVar (AVAR)
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Console (CONSOLE)
-import Control.Monad.Eff.Exception (EXCEPTION)
-import Control.Monad.Eff.Random (RANDOM)
+
+import Effect (Effect)
+import Effect.Class (liftEffect)
 import Data.Array (find, reverse, sort)
 import Data.Date (Date, Day, Month(..), Year, canonicalDate, day, month, weekday, year)
 import Data.DateTime (adjust, date)
@@ -20,15 +17,14 @@ import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..), fromJust)
 import Data.Rational ((%))
-import Data.StrMap (StrMap, fromFoldable)
+import Foreign.Object (Object, fromFoldable)
 import Data.Time.Duration (Days(..))
 import Data.Tuple (Tuple(..))
 import Partial.Unsafe (unsafePartial)
-import Test.QuickCheck.Laws (checkLaws)
-import Test.QuickCheck.Laws.Data (checkMonoid, checkSemigroup)
+import Test.StrongCheck.Laws (checkLaws)
+import Test.StrongCheck.Laws.Data (checkMonoid, checkSemigroup)
 import Test.Unit (suite, test)
 import Test.Unit.Assert (equal)
-import Test.Unit.Console (TESTOUTPUT)
 import Test.Unit.Main (runTest)
 import Type.Proxy (Proxy(..))
 
@@ -37,35 +33,17 @@ derive instance genericTestRecord :: Generic TestRecord _
 instance eqTestRecord :: Eq TestRecord where eq = genericEq
 instance showTestRecord :: Show TestRecord where show = genericShow
 
-checkDistance
-  :: ∀ e
-   . Eff
-     ( console :: CONSOLE
-     , random :: RANDOM
-     , exception :: EXCEPTION
-     | e
-     )
-     Unit
+checkDistance :: Effect Unit
 checkDistance = checkLaws "Distance" do
   checkSemigroup prxDistance
   checkMonoid prxDistance
   where
     prxDistance = Proxy :: Proxy Distance
 
-main
-  :: ∀ e
-   . Eff
-     ( console :: CONSOLE
-     , testOutput :: TESTOUTPUT
-     , avar :: AVAR
-     , exception :: EXCEPTION
-     , random :: RANDOM
-     | e
-     )
-     Unit
+main :: Effect Unit
 main = runTest do
   suite "laws" do
-    test "Distance abides typeclass laws" $ liftEff checkDistance
+    test "Distance abides typeclass laws" $ liftEffect checkDistance
 
   suite "matchStr" do
     test "matches empty pattern" do
@@ -338,7 +316,7 @@ main = runTest do
       equal expected result
 
   where
-    toMapStr :: TestRecord -> StrMap String
+    toMapStr :: TestRecord -> Object String
     toMapStr (TR { name, value }) = fromFoldable [ Tuple "name" name, Tuple "value" value ]
 
     firstMatchingDate :: Array (Fuzzy Date) -> Maybe (Fuzzy Date)
@@ -346,7 +324,7 @@ main = runTest do
       where
         match' (Fuzzy { ratio }) = ratio == 1 % 1
 
-    dateToMapStr :: Date -> StrMap String
+    dateToMapStr :: Date -> Object String
     dateToMapStr d =
       fromFoldable
         [ Tuple "mdy1" $ sYearMonth <> " " <> sDay <> " " <> sYear

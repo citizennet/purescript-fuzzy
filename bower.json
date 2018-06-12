@@ -25,22 +25,21 @@
     "output"
   ],
   "dependencies": {
-    "purescript-prelude": "^3.1.1",
-    "purescript-console": "^3.0.0",
-    "purescript-strings": "^3.4.0",
-    "purescript-foldable-traversable": "^3.7.1",
-    "purescript-tuples": "^4.1.0",
-    "purescript-stringutils": "^0.0.7",
-    "purescript-maps": "^3.6.0",
-    "purescript-newtype": "^2.0.0",
-    "purescript-generics-rep": "^5.4.0",
-    "purescript-rationals": "^4.0.0",
-    "purescript-quickcheck": "^4.6.1"
+    "purescript-prelude": "^4.0.1",
+    "purescript-strings": "^4.0.0",
+    "purescript-foldable-traversable": "^4.0.0",
+    "purescript-tuples": "^5.0.0",
+    "purescript-ordered-collections": "^1.0.0",
+    "purescript-newtype": "^3.0.0",
+    "purescript-generics-rep": "^6.0.0",
+    "purescript-rationals": "^5.0.0",
+    "purescript-foreign-object": "^1.0.0"
   },
   "devDependencies": {
-    "purescript-psci-support": "^3.0.0",
-    "purescript-test-unit": "^13.0.0",
-    "purescript-quickcheck-laws": "^3.0.1",
-    "purescript-datetime": "^3.4.1"
+    "purescript-psci-support": "^4.0.0",
+    "purescript-test-unit": "^14.0.0",
+    "purescript-datetime": "^4.0.0",
+    "purescript-strongcheck": "^4.1.0",
+    "purescript-strongcheck-laws": "^3.0.0"
   }
 }
