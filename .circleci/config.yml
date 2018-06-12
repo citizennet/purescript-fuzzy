@@ -40,7 +40,7 @@ jobs:
 
       - run:
           name: Run tests...
-          command: pulp test
+          command: yarn test
 
 workflows:
     version: 2
