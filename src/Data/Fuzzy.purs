@@ -13,7 +13,7 @@ module Data.Fuzzy
 import Prelude
 
 import Data.Array (snoc, unsnoc)
-import Data.Either (Either(..))
+import Data.Either (Either(..), either)
 import Data.Foldable (foldl)
 import Data.Function (on)
 import Data.Generic.Rep (class Generic)
@@ -21,14 +21,14 @@ import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Ord (genericCompare)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Monoid (class Monoid, mempty)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Rational (Rational, (%))
-import Data.StrMap (StrMap, values)
-import Data.String (Pattern(..), drop, indexOf, lastIndexOf, take, toLower)
-import Data.String.Utils (length, replaceAll, toCharArray, words)
+import Data.String (Pattern(..), Replacement(..), drop, indexOf, lastIndexOf, length, singleton, take, toCodePointArray, toLower)
+import Data.String.Common (replaceAll)
+import Data.String.Regex (parseFlags, regex, split)
 import Data.Tuple (Tuple(..))
-import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
+import Foreign.Object (Object, values)
+import Test.StrongCheck.Arbitrary (class Arbitrary, arbitrary)
 
 -- | Type representing segments of matched and unmatched substrings.
 -- | For example, when matching the pattern `"foo bar"` against the value
@@ -131,7 +131,7 @@ instance ordFuzzyStr :: Ord FuzzyStr where
 -- | Fields:
 -- |
 -- | - `original`: the original polymorphic value provided to `match`
--- | - `segments`: `StrMap` of keys to `Segments` values, `Segments` values each
+-- | - `segments`: `Object` of keys to `Segments` values, `Segments` values each
 -- |   consisting of the original string values for each key, split into substrings
 -- |   of matched and unmatched chars (see `Segments` or `match` definitions for more info)
 -- | - `distance`: the best `Distance` score found for any provided key values (see `Distance`
@@ -140,7 +140,7 @@ instance ordFuzzyStr :: Ord FuzzyStr where
 
 newtype Fuzzy a = Fuzzy
   { original :: a
-  , segments  :: StrMap Segments
+  , segments  :: Object Segments
   , distance :: Distance
   , ratio    :: Rational
   }
@@ -223,7 +223,7 @@ matchStr ignoreCase pattern str =
       }
 
     chars :: Int
-    chars = length $ replaceAll " " "" pattern
+    chars = length $ replaceAll (Pattern " ") (Replacement "") pattern
 
     matchStr' :: Scope -> MatchStrAcc -> String -> MatchStrAcc
     matchStr'
@@ -247,7 +247,7 @@ matchStr ignoreCase pattern str =
         Nothing ->
           case scope of
             Full -> foldl (matchStr' Word) (nextAcc Start) $ words pat
-            Word -> foldl (matchStr' Char) (nextAcc Start) $ toCharArray pat
+            Word -> foldl (matchStr' Char) (nextAcc Start) $ (map singleton <<< toCodePointArray) pat
             Char -> nextAcc pos
         where
           Tuple pat' substr' =
@@ -306,7 +306,7 @@ matchStr ignoreCase pattern str =
 -- |
 -- | - `ignoreCase`: flag for whether or not uppercase and lowercase values should be
 -- |   considered the same or not
--- | - `extract`: function from your polymorphic `val` to `StrMap String` so `match`
+-- | - `extract`: function from your polymorphic `val` to `Object String` so `match`
 -- |   can search through each string for the desired `pattern`
 -- | - `pattern`: string of chars you wish to match for in any of the strings `extract`
 -- |   pulls from the provided `val`
@@ -333,7 +333,7 @@ matchStr ignoreCase pattern str =
 -- |
 -- | See `test/Main.purs` for more examples
 
-match :: ∀ a. Boolean -> (a -> StrMap String) -> String -> a -> Fuzzy a
+match :: ∀ a. Boolean -> (a -> Object String) -> String -> a -> Fuzzy a
 match _ extract "" val =
   Fuzzy
     { original: val
@@ -349,7 +349,7 @@ match ignoreCase extract pattern val =
     , ratio: foldl maxRatio (0 % 1) $ fuzzies
     }
   where
-    matches :: StrMap FuzzyStr
+    matches :: Object FuzzyStr
     matches = matchStr ignoreCase pattern <$> extract val
 
     fuzzies :: Array FuzzyStr
@@ -390,3 +390,9 @@ indexOf' = indexOf <<< Pattern
 
 lastIndexOf' :: String -> String -> Maybe Int
 lastIndexOf' = lastIndexOf <<< Pattern
+
+-- Split strings on whitespace using code points
+words :: String -> Array String
+words = either (const <<< pure) split regex'
+  where
+    regex' = regex "\\s+" $ parseFlags "g"

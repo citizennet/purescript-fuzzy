@@ -13,28 +13,28 @@ jobs:
 
       - restore_cache:
           keys:
-            - v1.0-bower-cache-{{ .Branch }}-{{ checksum "bower.json" }}
-            - v1.0-bower-cache-{{ .Branch }}
-            - v1.0-bower-cache
+            - v1.1-bower-cache-{{ .Branch }}-{{ checksum "bower.json" }}
+            - v1.1-bower-cache-{{ .Branch }}
+            - v1.1-bower-cache
 
       - restore_cache:
           keys:
-            - v1.0-npm-cache-{{ .Branch }}-{{ checksum "package.json" }}
-            - v1.0-npm-cache-{{ .Branch }}
-            - v1.0-npm-cache
+            - v1.1-npm-cache-{{ .Branch }}-{{ checksum "package.json" }}
+            - v1.1-npm-cache-{{ .Branch }}
+            - v1.1-npm-cache
 
       - run:
           name: Install dependencies from NPM and Bower
           command: npm i && bower i
 
       - save_cache:
-          key: v1.0-bower-cache-{{ .Branch }}-{{ checksum "bower.json" }}
+          key: v1.1-bower-cache-{{ .Branch }}-{{ checksum "bower.json" }}
           paths:
             - ~/fuzzy/bower_components
             - ~/fuzzy/output
 
       - save_cache:
-          key: v1.0-npm-cache-{{ .Branch }}-{{ checksum "package.json" }}
+          key: v1.1-npm-cache-{{ .Branch }}-{{ checksum "package.json" }}
           paths:
             - ~/fuzzy/node_modules
 
