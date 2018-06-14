@@ -33,13 +33,13 @@
     "purescript-newtype": "^3.0.0",
     "purescript-generics-rep": "^6.0.0",
     "purescript-rationals": "^5.0.0",
+    "purescript-strongcheck": "^4.1.0",
     "purescript-foreign-object": "^1.0.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^4.0.0",
     "purescript-test-unit": "^14.0.0",
     "purescript-datetime": "^4.0.0",
-    "purescript-strongcheck": "^4.1.0",
     "purescript-strongcheck-laws": "^3.0.0"
   }
 }
