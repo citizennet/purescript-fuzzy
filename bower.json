@@ -1,9 +1,7 @@
 {
   "name": "purescript-fuzzy",
   "homepage": "https://github.com/citizennet/purescript-fuzzy",
-  "authors": [
-    "Dave Zuch <https://github.com/whoadave>"
-  ],
+  "authors": ["Dave Zuch <https://github.com/whoadave>"],
   "description": "A type-safe fuzzy string matcher",
   "keywords": [
     "purescript",
@@ -18,28 +16,21 @@
     "type": "git",
     "url": "git@github.com:citizennet/purescript-fuzzy.git"
   },
-  "ignore": [
-    "**/.*",
-    "node_modules",
-    "bower_components",
-    "output"
-  ],
+  "ignore": ["**/.*", "node_modules", "bower_components", "output"],
   "dependencies": {
-    "purescript-prelude": "^4.0.1",
-    "purescript-strings": "^4.0.0",
-    "purescript-foldable-traversable": "^4.0.0",
-    "purescript-tuples": "^5.0.0",
-    "purescript-ordered-collections": "^1.0.0",
+    "purescript-prelude": "^4.1.1",
+    "purescript-strings": "^4.0.1",
+    "purescript-foldable-traversable": "^4.1.1",
+    "purescript-tuples": "^5.1.0",
+    "purescript-ordered-collections": "^1.6.1",
     "purescript-newtype": "^3.0.0",
-    "purescript-generics-rep": "^6.0.0",
+    "purescript-generics-rep": "^6.1.1",
     "purescript-rationals": "^5.0.0",
-    "purescript-strongcheck": "^4.1.0",
-    "purescript-foreign-object": "^1.0.0"
+    "purescript-foreign-object": "^2.0.3"
   },
   "devDependencies": {
     "purescript-psci-support": "^4.0.0",
-    "purescript-test-unit": "^14.0.0",
-    "purescript-datetime": "^4.0.0",
-    "purescript-strongcheck-laws": "^3.0.0"
+    "purescript-test-unit": "^15.0.0",
+    "purescript-datetime": "^4.1.1"
   }
 }
