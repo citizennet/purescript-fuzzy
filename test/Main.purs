@@ -2,9 +2,7 @@ module Test.Main where
 
 import Prelude
 
-
 import Effect (Effect)
-import Effect.Class (liftEffect)
 import Data.Array (find, reverse, sort)
 import Data.Date (Date, Day, Month(..), Year, canonicalDate, day, month, weekday, year)
 import Data.DateTime (adjust, date)
@@ -16,34 +14,28 @@ import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..), fromJust)
+import Data.Newtype (class Newtype)
 import Data.Rational ((%))
 import Foreign.Object (Object, fromFoldable)
 import Data.Time.Duration (Days(..))
 import Data.Tuple (Tuple(..))
 import Partial.Unsafe (unsafePartial)
-import Test.StrongCheck.Laws (checkLaws)
-import Test.StrongCheck.Laws.Data (checkMonoid, checkSemigroup)
-import Test.Unit (suite, test)
+import Test.QuickCheck.Arbitrary (arbitrary, class Arbitrary)
+import Test.Unit (TestSuite, suite, test)
 import Test.Unit.Assert (equal)
+import Test.Unit.QuickCheck (quickCheck')
 import Test.Unit.Main (runTest)
-import Type.Proxy (Proxy(..))
 
 newtype TestRecord = TR { name :: String, value :: String }
 derive instance genericTestRecord :: Generic TestRecord _
 instance eqTestRecord :: Eq TestRecord where eq = genericEq
 instance showTestRecord :: Show TestRecord where show = genericShow
 
-checkDistance :: Effect Unit
-checkDistance = checkLaws "Distance" do
-  checkSemigroup prxDistance
-  checkMonoid prxDistance
-  where
-    prxDistance = Proxy :: Proxy Distance
-
 main :: Effect Unit
 main = runTest do
   suite "laws" do
-    test "Distance abides typeclass laws" $ liftEffect checkDistance
+    checkSemigroup
+    checkMonoid
 
   suite "matchStr" do
     test "matches empty pattern" do
@@ -400,3 +392,48 @@ main = runTest do
       where
         next :: Number -> Date -> Maybe Date
         next dur d = date <$> (adjust (Days dur) (toDateTime $ fromDate d))
+
+newtype Distance' = Distance' Distance
+
+derive instance newtypeDistance' :: Newtype Distance' _
+
+derive newtype instance eqDistance' :: Eq Distance'
+derive newtype instance ordDistance' :: Ord Distance'
+derive newtype instance semigroupDistance' :: Semigroup Distance'
+derive newtype instance monoidDistance' :: Monoid Distance'
+
+instance arbitraryDistance' :: Arbitrary Distance' where
+  arbitrary = map Distance' do
+    Distance
+      <$> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+
+-- | - Associativity: `(x <> y) <> z = x <> (y <> z)`
+checkSemigroup :: TestSuite
+checkSemigroup = do
+  test "Associativty law for Semigroup" do
+    quickCheck' 1000 associativity
+  where
+  associativity :: Distance' -> Distance' -> Distance' -> Boolean
+  associativity x y z = ((x <> y) <> z) == (x <> (y <> z))
+
+-- | - Left identity: `mempty <> x = x`
+-- | - Right identity: `x <> mempty = x`
+checkMonoid :: TestSuite
+checkMonoid = do
+  test "Left identity law for Monoid" do
+    quickCheck' 1000 leftIdentity
+
+  test "Right identity law for Monoid" do
+    quickCheck' 1000 rightIdentity
+
+  where
+  leftIdentity :: Distance' -> Boolean
+  leftIdentity x = mempty <> x == x
+
+  rightIdentity :: Distance' -> Boolean
+  rightIdentity x = x <> mempty == x

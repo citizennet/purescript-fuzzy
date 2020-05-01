@@ -28,7 +28,6 @@ import Data.String.Common (replaceAll)
 import Data.String.Regex (parseFlags, regex, split)
 import Data.Tuple (Tuple(..))
 import Foreign.Object (Object, values)
-import Test.StrongCheck.Arbitrary (class Arbitrary, arbitrary)
 
 -- | Type representing segments of matched and unmatched substrings.
 -- | For example, when matching the pattern `"foo bar"` against the value
@@ -84,15 +83,6 @@ instance semigroupDistance :: Semigroup Distance where
 
 instance monoidDistance :: Monoid Distance where
   mempty = None
-
-instance arbitraryDistance :: Arbitrary Distance where
-  arbitrary = Distance
-    <$> arbitrary
-    <*> arbitrary
-    <*> arbitrary
-    <*> arbitrary
-    <*> arbitrary
-    <*> arbitrary
 
 -- | Data representing the result of matching a string value against a string pattern
 -- |
