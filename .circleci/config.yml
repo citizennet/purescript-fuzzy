@@ -3,7 +3,7 @@ version: 2
 defaults: &defaults
   working_directory: ~/fuzzy
   docker:
-    - image: thomashoneyman/purescript:0.0.2
+    - image: circleci/node:10.8-browsers
 
 jobs:
   test:
@@ -13,34 +13,35 @@ jobs:
 
       - restore_cache:
           keys:
-            - v1.1-bower-cache-{{ .Branch }}-{{ checksum "bower.json" }}
-            - v1.1-bower-cache-{{ .Branch }}
-            - v1.1-bower-cache
+            - v1.2-bower-cache-{{ .Branch }}-{{ checksum "bower.json" }}
+            - v1.2-bower-cache-{{ .Branch }}
+            - v1.2-bower-cache-master-{{ checksum "bower.json" }}
+            - v1.2-bower-cache-master
 
       - restore_cache:
           keys:
-            - v1.1-npm-cache-{{ .Branch }}-{{ checksum "package.json" }}
-            - v1.1-npm-cache-{{ .Branch }}
-            - v1.1-npm-cache
+            - v1.2-npm-cache-{{ .Branch }}-{{ checksum "package.json" }}
+            - v1.2-npm-cache-{{ .Branch }}
+            - v1.2-npm-cache-master-{{ checksum "package.json" }}
+            - v1.2-npm-cache-master
 
       - run:
-          name: Install dependencies from NPM and Bower
-          command: npm i && bower i
+          name: Verify the project builds and tests run successfully
+          command: make test
+          environment:
+            # The machines might have more cores than `purs` can actually use.
+            # Set the number of threads to two (the cores we have available).
+            RTS_ARGS: +RTS -N2 -RTS
 
       - save_cache:
-          key: v1.1-bower-cache-{{ .Branch }}-{{ checksum "bower.json" }}
+          key: v1.2-bower-cache-{{ .Branch }}-{{ checksum "bower.json" }}
           paths:
             - ~/fuzzy/bower_components
-            - ~/fuzzy/output
 
       - save_cache:
-          key: v1.1-npm-cache-{{ .Branch }}-{{ checksum "package.json" }}
+          key: v1.2-npm-cache-{{ .Branch }}-{{ checksum "package.json" }}
           paths:
             - ~/fuzzy/node_modules
-
-      - run:
-          name: Run tests...
-          command: yarn test
 
 workflows:
     version: 2

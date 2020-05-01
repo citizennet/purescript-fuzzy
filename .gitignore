@@ -1,3 +1,4 @@
+/.build/
 /bower_components/
 /node_modules/
 /.pulp-cache/
@@ -7,3 +8,4 @@
 /.psc*
 /.purs*
 /.psa*
+npm-debug.log
