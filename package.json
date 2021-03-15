@@ -1,14 +1,13 @@
 {
   "private": true,
   "scripts": {
-    "test": "pulp test"
+    "build": "spago build",
+    "test": "spago test"
   },
   "devDependencies": {
-    "pulp": "^14.0.0",
-    "purescript": "^0.13.6"
+    "purescript": "^0.14.0",
+    "spago": "^0.19.1"
   },
   "dependencies": {
-    "bower": "^1.8.8",
-    "purescript-psa": "^0.7.3"
   }
 }
