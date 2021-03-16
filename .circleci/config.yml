@@ -13,10 +13,10 @@ jobs:
 
       - restore_cache:
           keys:
-            - v1.2-bower-cache-{{ .Branch }}-{{ checksum "bower.json" }}
-            - v1.2-bower-cache-{{ .Branch }}
-            - v1.2-bower-cache-master-{{ checksum "bower.json" }}
-            - v1.2-bower-cache-master
+            - v1.0-spago-cache-{{ .Branch }}-{{ checksum "spago.dhall" }}-{{ checksum "packages.dhall" }}
+            - v1.0-spago-cache-{{ .Branch }}
+            - v1.0-spago-cache-master-{{ checksum "spago.dhall" }}-{{ checksum "packages.dhall" }}
+            - v1.0-spago-cache-master
 
       - restore_cache:
           keys:
@@ -34,9 +34,9 @@ jobs:
             RTS_ARGS: +RTS -N2 -RTS
 
       - save_cache:
-          key: v1.2-bower-cache-{{ .Branch }}-{{ checksum "bower.json" }}
+          key: v1.0-spago-cache-{{ .Branch }}-{{ checksum "spago.dhall" }}-{{ checksum "packages.dhall" }}
           paths:
-            - ~/fuzzy/bower_components
+            - ~/fuzzy/.spago
 
       - save_cache:
           key: v1.2-npm-cache-{{ .Branch }}-{{ checksum "package.json" }}
