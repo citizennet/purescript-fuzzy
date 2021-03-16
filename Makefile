@@ -103,7 +103,7 @@ $(BUILD)/test.out: $(BUILD)/test.js | $(BUILD)
 
 $(DEPS): packages.dhall spago.dhall $(NODE_MODULES_STAMP) | $(BUILD)
 	npx spago install $(RTS_ARGS)
-	npx --silent spago sources $(RTS_ARGS) | sed -e "s/\(.*\)/'\1'/" | tr '\n' ' ' > $(DEPS)
+	npx spago sources $(RTS_ARGS) | sed -e "s/\(.*\)/'\1'/" | tr '\n' ' ' > $(DEPS)
 
 $(NODE_MODULES_STAMP): package.json
 	npm install
