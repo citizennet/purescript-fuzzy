@@ -2,12 +2,12 @@
   "private": true,
   "scripts": {
     "build": "spago build",
+    "preinstall": "npx npm-force-resolutions",
     "test": "spago test"
   },
   "devDependencies": {
     "purescript": "^0.14.0",
+    "purescript-psa": "^0.8.2",
     "spago": "^0.19.1"
-  },
-  "dependencies": {
   }
 }

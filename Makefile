@@ -57,12 +57,11 @@
 # See: https://www.gnu.org/software/make/manual/make.html#Phony-Targets
 # See: https://www.gnu.org/software/make/manual/make.html#index-_002ePHONY-1
 
-BOWER_COMPONENTS := bower_components/.stamp
 BUILD := .build
-DEPS := 'bower_components/purescript-*/src/**/*.purs'
-NODE_MODULES := node_modules/.stamp
+DEPS := $(BUILD)/.deps
+NODE_MODULES_STAMP := node_modules/.stamp
 OUTPUT := output
-PSA_ARGS := --censor-lib --stash=$(BUILD)/.psa_stash --strict
+PSA_ARGS := --censor-lib --stash=$(BUILD)/.psa_stash --strict --is-lib=.spago
 SRC := src
 SRCS := $(shell find $(SRC) -name '*.purs' -type f)
 TEST := test
@@ -71,16 +70,11 @@ TESTS := $(shell find $(TEST) -name '*.purs' -type f)
 # Allow RTS args to be passed in to override the default behavior.
 # We can invoke make like: `RTS_ARGS='+RTS -N16 -RTS' make`.
 RTS_ARGS ?=
-BOWER_ARGS ?=
 
 # Colors for printing
 RED := \033[0;31m
 
 .DEFAULT_GOAL := $(BUILD)/main.js
-
-$(BOWER_COMPONENTS): bower.json $(NODE_MODULES)
-	npx bower install $(BOWER_ARGS)
-	touch $@
 
 $(BUILD):
 	mkdir -p $@
@@ -107,22 +101,26 @@ $(BUILD)/test.out: $(BUILD)/test.js | $(BUILD)
 	node $< | tee $@.tmp # Store output in a temp file in case of a failure.
 	mv $@.tmp $@ # Move the output where it belongs.
 
-$(NODE_MODULES): package.json
+$(DEPS): packages.dhall spago.dhall $(NODE_MODULES_STAMP) | $(BUILD)
+	npx spago install $(RTS_ARGS)
+	npx spago sources $(RTS_ARGS) | sed -e "s/\(.*\)/'\1'/" | tr '\n' ' ' > $(DEPS)
+
+$(NODE_MODULES_STAMP): package.json
 	npm install
 	touch $@
 
-$(OUTPUT)/Data.Fuzzy/index.js: $(BOWER_COMPONENTS) $(NODE_MODULES) | $(BUILD)
-	npx psa $(PSA_ARGS) $(RTS_ARGS) $(DEPS) $(SRCS)
+$(OUTPUT)/Data.Fuzzy/index.js: $(DEPS) $(NODE_MODULES_STAMP) | $(BUILD)
+	npx psa $(PSA_ARGS) $(RTS_ARGS) $(shell cat $(DEPS)) $(SRCS)
 
-$(OUTPUT)/Test.Main/index.js: $(BOWER_COMPONENTS) $(NODE_MODULES) | $(BUILD)
-	npx psa $(PSA_ARGS) $(RTS_ARGS) $(DEPS) $(SRCS) $(TESTS)
+$(OUTPUT)/Test.Main/index.js: $(DEPS) $(NODE_MODULES_STAMP) | $(BUILD)
+	npx psa $(PSA_ARGS) $(RTS_ARGS) $(shell cat $(DEPS)) $(SRCS) $(TESTS)
 
 .PHONY: clean
 clean:
 	rm -fr \
 	  $(BUILD) \
 	  $(OUTPUT) \
-	  bower_components \
+	  .spago \
 	  node_modules
 
 test: $(BUILD)/main.js $(BUILD)/test.out

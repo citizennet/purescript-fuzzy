@@ -3,7 +3,7 @@ version: 2
 defaults: &defaults
   working_directory: ~/fuzzy
   docker:
-    - image: circleci/node:10.8-browsers
+    - image: circleci/node:12.5-browsers
 
 jobs:
   test:
@@ -13,17 +13,17 @@ jobs:
 
       - restore_cache:
           keys:
-            - v1.2-bower-cache-{{ .Branch }}-{{ checksum "bower.json" }}
-            - v1.2-bower-cache-{{ .Branch }}
-            - v1.2-bower-cache-master-{{ checksum "bower.json" }}
-            - v1.2-bower-cache-master
+            - v1.0-spago-cache-{{ .Branch }}-{{ checksum "spago.dhall" }}-{{ checksum "packages.dhall" }}
+            - v1.0-spago-cache-{{ .Branch }}
+            - v1.0-spago-cache-master-{{ checksum "spago.dhall" }}-{{ checksum "packages.dhall" }}
+            - v1.0-spago-cache-master
 
       - restore_cache:
           keys:
-            - v1.2-npm-cache-{{ .Branch }}-{{ checksum "package.json" }}
-            - v1.2-npm-cache-{{ .Branch }}
-            - v1.2-npm-cache-master-{{ checksum "package.json" }}
-            - v1.2-npm-cache-master
+            - v1.3-npm-cache-{{ .Branch }}-{{ checksum "package.json" }}
+            - v1.3-npm-cache-{{ .Branch }}
+            - v1.3-npm-cache-master-{{ checksum "package.json" }}
+            - v1.3-npm-cache-master
 
       - run:
           name: Verify the project builds and tests run successfully
@@ -34,9 +34,9 @@ jobs:
             RTS_ARGS: +RTS -N2 -RTS
 
       - save_cache:
-          key: v1.2-bower-cache-{{ .Branch }}-{{ checksum "bower.json" }}
+          key: v1.0-spago-cache-{{ .Branch }}-{{ checksum "spago.dhall" }}-{{ checksum "packages.dhall" }}
           paths:
-            - ~/fuzzy/bower_components
+            - ~/fuzzy/.spago
 
       - save_cache:
           key: v1.2-npm-cache-{{ .Branch }}-{{ checksum "package.json" }}
