@@ -1,0 +1,31 @@
+{
+    "name": "purescript-fuzzy",
+    "license": [
+        "Apache-2.0"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/citizennet/purescript-fuzzy.git"
+    },
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components",
+        "output"
+    ],
+    "dependencies": {
+        "purescript-console": "^v5.0.0",
+        "purescript-datetime": "^v5.0.0",
+        "purescript-effect": "^v3.0.0",
+        "purescript-foldable-traversable": "^v5.0.0",
+        "purescript-foreign-object": "^v3.0.0",
+        "purescript-newtype": "^v4.0.0",
+        "purescript-ordered-collections": "^v2.0.0",
+        "purescript-prelude": "^v5.0.0",
+        "purescript-psci-support": "^v5.0.0",
+        "purescript-rationals": "^v5.0.0",
+        "purescript-strings": "^v5.0.0",
+        "purescript-test-unit": "^v16.0.0",
+        "purescript-tuples": "^v6.0.0"
+    }
+}
